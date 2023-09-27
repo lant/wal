@@ -7,10 +7,8 @@ import java.io.IOException;
 
 public class Example {
     public static void main(String[] args) throws IOException {
-        Wal wal = new TextFileWal("/tmp/");
-        wal.write("key", "value");
-        wal.write("key2", "value2");
-        wal.write("key3", "value3");
-
+        Database db = new Database();
+        db.writeKeyValue("key", "value");
+        db.writeKeyValue("key2", "value2");
     }
 }

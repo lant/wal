@@ -4,9 +4,9 @@ Java implementation of a Write Ahead Log.
 This is a working implementation of a Write Ahead Log. It's purpose is to illustrate how this technique works. 
 It's explained in this [blog post](not published yet).
 
-| Version | Github Tag | Explanation |
-|---------|------------|-------------|
-| 0.1     | [0.1]()    | Basic usage |
+| Version | Github Tag | Explanation                         |
+|---------|------------|-------------------------------------|
+| 0.1     | [0.1]()    | Basic and trivial usage of the WAL. |
 
 ## Disclaimer
 This is, at the time of writing a toy project that implements some workarounds in order to implement

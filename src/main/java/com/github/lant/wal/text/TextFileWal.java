@@ -10,16 +10,28 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+/**
+ * This class stores the data in a WAL file.
+ *
+ * In this specific implementation we are using a very basic Text file to store the text based contents. It is for
+ * didactic purposes only as it's not an efficient implementation and does not provide proper error handling.
+ */
 public class TextFileWal implements Wal {
-    private static Logger logger = LoggerFactory.getLogger(TextFileWal.class);
+    private static final Logger logger = LoggerFactory.getLogger(TextFileWal.class);
 
     private FileOutputStream fileOutputStream = null;
 
-    public TextFileWal(String rootDirectory) throws IOException {
+    public TextFileWal(String rootDirectory) {
         Path baseDir = Path.of(rootDirectory);
         if (Files.isDirectory(baseDir) && Files.isWritable(baseDir)) {
-            File walFile = Files.createFile(Path.of(rootDirectory, "file.wal")).toFile();
-            this.fileOutputStream = new FileOutputStream(walFile);
+            File walFile = null;
+            try {
+                walFile = Files.createFile(Path.of(rootDirectory, "file.wal")).toFile();
+                this.fileOutputStream = new FileOutputStream(walFile);
+            } catch (IOException e) {
+                logger.error("Could not create WAL file", e);
+                throw new RuntimeException(e);
+            }
         }
     }
     @Override
