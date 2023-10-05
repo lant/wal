@@ -1,5 +1,8 @@
 package com.github.lant.wal;
 
+import java.util.UUID;
+
 public interface Wal {
-    boolean write(String key, String value);
+    long write(String key, String value);
+    void commit(long walId);
 }
