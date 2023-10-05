@@ -21,15 +21,18 @@ public class TextFileWal implements Wal {
     private static final int MAX_FILE_LENGTH = 1024 * 1024; // 1mb
     private static final boolean APPEND = true;
     private static final Logger logger = LoggerFactory.getLogger(TextFileWal.class);
+    private final String rootDirectory;
 
     private FileOutputStream fileOutputStream = null;
+    private File currentWalFile = null;
+    private int currentWalFileIdx = 0;
 
     public TextFileWal(String rootDirectory) throws IOException {
+        this.rootDirectory = rootDirectory;
         Path baseDir = Path.of(rootDirectory);
         if (Files.isDirectory(baseDir) && Files.isWritable(baseDir)) {
             // let's see if we already had some WAL files in there.
             OptionalInt previousIdx = getPreviousIdx(baseDir);
-            int currentWalFileIdx = 0;
             if (previousIdx.isPresent()) {
                 // check the size.
                 if (Files.size(Path.of(baseDir.toString(), getWalFileName(previousIdx.getAsInt()))) < MAX_FILE_LENGTH) {
@@ -46,13 +49,12 @@ public class TextFileWal implements Wal {
                 // look which wal file we need now
                 String nextFile = getWalFileName(currentWalFileIdx);
                 Path wal = Path.of(rootDirectory, nextFile);
-                File walFile = null;
                 if (!Files.exists(wal)) {
-                     walFile = Files.createFile(wal).toFile();
+                    currentWalFile = Files.createFile(wal).toFile();
                 } else {
-                    walFile = wal.toFile();
+                    currentWalFile = wal.toFile();
                 }
-                this.fileOutputStream = new FileOutputStream(walFile, APPEND);
+                this.fileOutputStream = new FileOutputStream(currentWalFile, APPEND);
             } catch (IOException e) {
                 logger.error("Could not create WAL file", e);
                 throw new RuntimeException(e);
@@ -74,7 +76,6 @@ public class TextFileWal implements Wal {
 
     @Override
     public long write(String key, String value) {
-
         // "serialise"
         long now = System.currentTimeMillis();
         String serialised = now + "-" + key + "-" + value + "\n";
@@ -83,6 +84,17 @@ public class TextFileWal implements Wal {
             this.fileOutputStream.write(serialised.getBytes());
             // make sure that the data is actually persisted into disk.
             this.fileOutputStream.flush();
+
+            // check size
+            if (Files.size(this.currentWalFile.toPath()) >= MAX_FILE_LENGTH) {
+                logger.info(String.valueOf(Files.size(this.currentWalFile.toPath())));
+                // roll file
+                currentWalFileIdx++;
+                String nextFile = getWalFileName(currentWalFileIdx);
+                logger.info("Rolling wal file to " + nextFile);
+                this.currentWalFile = Path.of(rootDirectory, nextFile).toFile();
+                this.fileOutputStream = new FileOutputStream(this.currentWalFile);
+            }
 
         } catch (IOException e) {
             logger.error("Could not write into WAL file", e);
