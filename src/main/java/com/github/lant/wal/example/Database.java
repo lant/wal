@@ -3,12 +3,18 @@ package com.github.lant.wal.example;
 import com.github.lant.wal.Wal;
 import com.github.lant.wal.text.TextFileWal;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.OptionalInt;
 
 public class Database {
     Map<String, String> data = new HashMap<>();
-    Wal wal = new TextFileWal("/tmp/");
+    TextFileWal wal = new TextFileWal("/tmp/wal/");
+
+    public Database() throws IOException {
+    }
 
     public void writeKeyValue(String key, String value) {
         long walId = wal.write(key, value);
