@@ -8,5 +8,6 @@ public class Example {
         for (int i = 0; i < 1000000; i++) {
             db.writeKeyValue("key2", "value2");
         }
+        db.close();
     }
 }

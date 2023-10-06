@@ -1,13 +1,10 @@
 package com.github.lant.wal.example;
 
-import com.github.lant.wal.Wal;
 import com.github.lant.wal.text.TextFileWal;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.OptionalInt;
 
 public class Database {
     Map<String, String> data = new HashMap<>();
@@ -23,5 +20,9 @@ public class Database {
         }
         data.put(key, value);
         wal.commit(walId);
+    }
+
+    public void close() throws IOException {
+        wal.close();
     }
 }

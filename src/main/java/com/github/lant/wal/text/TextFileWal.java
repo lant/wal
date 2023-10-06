@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.OptionalInt;
-import java.util.stream.IntStream;
 
 /**
  * This class stores the data in a WAL file.
@@ -22,17 +21,19 @@ public class TextFileWal implements Wal {
     private static final boolean APPEND = true;
     private static final Logger logger = LoggerFactory.getLogger(TextFileWal.class);
     private final String rootDirectory;
-
+    CleaningProcess cleaningProcess = new CleaningProcess();
     private FileOutputStream fileOutputStream = null;
     private File currentWalFile = null;
     private int currentWalFileIdx = 0;
+    private WalFileUtils walFileUtils = null;
 
     public TextFileWal(String rootDirectory) throws IOException {
         this.rootDirectory = rootDirectory;
         Path baseDir = Path.of(rootDirectory);
+        walFileUtils = new WalFileUtils(baseDir);
         if (Files.isDirectory(baseDir) && Files.isWritable(baseDir)) {
             // let's see if we already had some WAL files in there.
-            OptionalInt previousIdx = getPreviousIdx(baseDir);
+            OptionalInt previousIdx = walFileUtils.getPreviousIdx();
             if (previousIdx.isPresent()) {
                 // check the size.
                 if (Files.size(Path.of(baseDir.toString(), getWalFileName(previousIdx.getAsInt()))) < MAX_FILE_LENGTH) {
@@ -61,18 +62,15 @@ public class TextFileWal implements Wal {
             }
         }
 
+        logger.info("Starting the wal file garbage collector");
+        new Thread(cleaningProcess).start();
     }
 
     private String getWalFileName(int idx) {
         return String.format("%03d", idx) + ".wal";
     }
 
-    public OptionalInt getPreviousIdx(Path baseDir) throws IOException {
-        return Files.list(baseDir)
-                .filter(path -> path.toString().endsWith(".wal"))
-                .map(path -> path.getFileName().toString().split("\\.")[0])
-                .flatMapToInt(name -> IntStream.of(Integer.parseInt(name))).max();
-    }
+
 
     @Override
     public long write(String key, String value) {
@@ -87,7 +85,6 @@ public class TextFileWal implements Wal {
 
             // check size
             if (Files.size(this.currentWalFile.toPath()) >= MAX_FILE_LENGTH) {
-                logger.info(String.valueOf(Files.size(this.currentWalFile.toPath())));
                 // roll file
                 currentWalFileIdx++;
                 String nextFile = getWalFileName(currentWalFileIdx);
@@ -105,7 +102,11 @@ public class TextFileWal implements Wal {
 
     @Override
     public void commit(long walId) {
-        // save the walId
-        // start the cleaning process
+        cleaningProcess.setLatestIdx(walId);
+    }
+
+    @Override
+    public void close() throws IOException {
+        cleaningProcess.close();
     }
 }
