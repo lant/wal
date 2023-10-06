@@ -12,9 +12,17 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * This class takes care of deleting old and unnecessary
+ * WAL files in the storage system.
+ *
+ * This class is a separate thread, as we don't want to block the main thread.
+ *
+ * The main method performing cleanups periodically (every 10s) for convenience. The cleanup
+ * process should be triggered by other factors as well, but for this example this is enough.
+ */
 public class CleaningProcess implements Runnable, Closeable {
     private static final Logger logger = LoggerFactory.getLogger(CleaningProcess.class);
-
     private boolean run = true;
     private long latestIdx;
 
@@ -36,9 +44,12 @@ public class CleaningProcess implements Runnable, Closeable {
         // list files in order
         List<Path> walFiles = Files.list(Path.of("/tmp/wal/"))
                 .sorted().collect(Collectors.toList());
-        // exclude the current idx
+        // exclude the current idx, we don't want to delete the file that's being currently used.
         walFiles.remove(walFiles.size() - 1);
-        // for each file:
+
+        // for each file: check the last key and if the key is smaller that the last committed
+        // key by the client at the time of starting the cleanup we can delete the full file as
+        // we know for sure that the rest of the keys are older than the last key.
         for (Path walFile : walFiles) {
             String lastRecord = "";
             String currentLine = "";
