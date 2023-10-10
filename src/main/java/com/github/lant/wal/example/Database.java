@@ -5,12 +5,18 @@ import com.github.lant.wal.text.TextFileWal;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class Database {
-    Map<String, String> data = new HashMap<>();
-    TextFileWal wal = new TextFileWal("/tmp/wal/");
+    private final TextFileWal wal = new TextFileWal("/tmp/wal/");
+    private final LinkedBlockingQueue<Data> queue = new LinkedBlockingQueue<>();
+    private final DatabaseProcessor processor;
 
     public Database() throws IOException {
+        processor = new DatabaseProcessor(wal, queue);
+        new Thread(processor).start();
     }
 
     public void writeKeyValue(String key, String value) {
@@ -18,11 +24,11 @@ public class Database {
         if (walId == 0L ) {
             throw new RuntimeException("Could not store data in the WAL file.");
         }
-        data.put(key, value);
-        wal.commit(walId);
+        queue.add(new Data(key, value, walId));
     }
 
     public void close() throws IOException {
         wal.close();
+        processor.close();
     }
 }

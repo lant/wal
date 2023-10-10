@@ -64,5 +64,7 @@ public class CleaningProcess implements Runnable, Closeable {
 
     public void setLatestIdx(long latestIdx) {
         this.latestIdx = latestIdx;
+
+        // store the data "safely", and we don't want to block
     }
 }
