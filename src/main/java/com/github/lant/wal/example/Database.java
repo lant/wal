@@ -3,10 +3,6 @@ package com.github.lant.wal.example;
 import com.github.lant.wal.text.TextFileWal;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class Database {

@@ -21,12 +21,13 @@ public class DatabaseProcessor implements Runnable, Closeable {
         this.wal = wal;
         this.queue = queue;
     }
+
     @Override
     public void run() {
        while (run) {
            try {
                Data data = queue.take();
-               Thread.sleep(rd.nextInt(100, 500));
+               Thread.sleep(rd.nextInt(500) + 100); 
                logger.info("Processing " + data);
                wal.commit(data.getIdx());
            } catch (InterruptedException e) {
