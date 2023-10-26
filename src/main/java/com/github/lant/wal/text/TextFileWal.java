@@ -1,15 +1,16 @@
 package com.github.lant.wal.text;
 
 import com.github.lant.wal.Wal;
+import com.github.lant.wal.example.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.OptionalInt;
+import java.util.stream.Stream;
 
 /**
  * This class stores the data in a WAL file.
@@ -19,18 +20,19 @@ import java.util.OptionalInt;
 public class TextFileWal implements Wal {
     private static final int MAX_FILE_LENGTH = 1024 * 1024; // 1mb
     private static final boolean APPEND = true;
+    private static final boolean NO_APPEND = false;
     private static final Logger logger = LoggerFactory.getLogger(TextFileWal.class);
     private final String rootDirectory;
     CleaningProcess cleaningProcess = new CleaningProcess();
     private FileOutputStream fileOutputStream = null;
     private File currentWalFile = null;
+    private final File commitLog = new File("/tmp/wal/commit.log");
     private int currentWalFileIdx = 0;
-    private WalFileUtils walFileUtils = null;
 
     public TextFileWal(String rootDirectory) throws IOException {
         this.rootDirectory = rootDirectory;
         Path baseDir = Path.of(rootDirectory);
-        walFileUtils = new WalFileUtils(baseDir);
+        WalFileUtils walFileUtils = new WalFileUtils(baseDir);
         if (Files.isDirectory(baseDir) && Files.isWritable(baseDir)) {
             // let's see if we already had some WAL files in there.
             OptionalInt previousIdx = walFileUtils.getPreviousIdx();
@@ -102,7 +104,55 @@ public class TextFileWal implements Wal {
 
     @Override
     public void commit(long walId) {
+        // store the stuff safely in file.
+        try {
+            FileOutputStream commitLog = new FileOutputStream("/tmp/wal/commit.log", NO_APPEND);
+            commitLog.write(Long.toString(walId).getBytes());
+            commitLog.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         cleaningProcess.setLatestIdx(walId);
+    }
+
+
+    @Override
+    public Stream<Data> getBacklog() {
+        // get commit log
+        try {
+            BufferedReader commitLogReader = new BufferedReader(new FileReader(commitLog));
+            long lastCommitedIdx = Long.parseLong(commitLogReader.readLine());
+
+            // go through wal files to see if we find that commit log / something newer
+            List<Path> walFiles = Files.list(Path.of("/tmp/wal/")).sorted().toList();
+
+            return walFiles.stream()
+                    .flatMap(this::fileToDataStream)
+                    .filter(data -> filterAlreadyCommitedIndexes(data, lastCommitedIdx));
+
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    private boolean filterAlreadyCommitedIndexes(Data dataRecord, long lastCommitedIdx) {
+        return dataRecord.getIdx() > lastCommitedIdx;
+    }
+
+    private Stream<Data> fileToDataStream(Path file) {
+        try {
+            BufferedReader bufferedReader = new BufferedReader(new FileReader(file.toString()));
+            return bufferedReader.lines().map(line -> {
+                String[] parts = line.split("-");
+                long idx = Long.parseLong(parts[0]);
+                String key = parts[1];
+                String value = parts[2];
+                return new Data(key, value, idx);
+            });
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override

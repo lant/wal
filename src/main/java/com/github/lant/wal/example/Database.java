@@ -13,6 +13,9 @@ public class Database {
     public Database() throws IOException {
         processor = new DatabaseProcessor(wal, queue);
         new Thread(processor).start();
+
+        // reprocess backlog, if any
+        wal.getBacklog().forEach(queue::add);
     }
 
     public void writeKeyValue(String key, String value) {
