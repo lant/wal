@@ -1,7 +1,6 @@
 package com.github.lant.wal.example;
 
 import com.github.lant.wal.Wal;
-import com.github.lant.wal.text.CleaningProcess;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

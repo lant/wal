@@ -35,7 +35,7 @@ public class CleaningProcess implements Runnable, Closeable {
         logger.info("Starting clean up process");
         // list files in order
         List<Path> walFiles = Files.list(Path.of("/tmp/wal/"))
-                .sorted().collect(Collectors.toList());
+                .sorted().filter(file -> !file.getFileName().toString().matches("commit.log")).collect(Collectors.toList());
         // exclude the current idx
         walFiles.remove(walFiles.size() - 1);
         // for each file:

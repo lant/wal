@@ -5,17 +5,25 @@ import com.github.lant.wal.text.TextFileWal;
 import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class Database {
     private final TextFileWal wal = new TextFileWal("/tmp/wal/");
     private final LinkedBlockingQueue<Data> queue = new LinkedBlockingQueue<>();
     private final DatabaseProcessor processor;
+    private static final Logger logger = LoggerFactory.getLogger(Database.class);
 
     public Database() throws IOException {
         processor = new DatabaseProcessor(wal, queue);
         new Thread(processor).start();
 
         // reprocess backlog, if any
-        wal.getBacklog().forEach(queue::add);
+        try {
+            wal.getBacklog().forEach(queue::add);
+        } catch (Exception e) {
+            logger.info("No files to be reexecuted."); 
+        }
     }
 
     public void writeKeyValue(String key, String value) {

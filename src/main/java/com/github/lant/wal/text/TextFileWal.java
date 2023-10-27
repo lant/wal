@@ -63,6 +63,9 @@ public class TextFileWal implements Wal {
                 throw new RuntimeException(e);
             }
         }
+        if (!commitLog.exists()) {
+            commitLog.createNewFile();
+        }
 
         logger.info("Starting the wal file garbage collector");
         new Thread(cleaningProcess).start();
@@ -71,7 +74,6 @@ public class TextFileWal implements Wal {
     private String getWalFileName(int idx) {
         return String.format("%03d", idx) + ".wal";
     }
-
 
 
     @Override
@@ -106,9 +108,9 @@ public class TextFileWal implements Wal {
     public void commit(long walId) {
         // store the stuff safely in file.
         try {
-            FileOutputStream commitLog = new FileOutputStream("/tmp/wal/commit.log", NO_APPEND);
-            commitLog.write(Long.toString(walId).getBytes());
-            commitLog.close();
+            try (FileOutputStream commitLog = new FileOutputStream("/tmp/wal/commit.log", NO_APPEND)) {
+                commitLog.write(Long.toString(walId).getBytes());
+            }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -121,10 +123,19 @@ public class TextFileWal implements Wal {
         // get commit log
         try {
             BufferedReader commitLogReader = new BufferedReader(new FileReader(commitLog));
-            long lastCommitedIdx = Long.parseLong(commitLogReader.readLine());
+            String line = commitLogReader.readLine(); 
+            commitLogReader.close();
+            long lastCommitedIdx;  
+            if (line != null) {
+                lastCommitedIdx = Long.parseLong(line); 
+            } else {
+                lastCommitedIdx = 0L;
+            }
+            logger.info("Latest commit IDX = " + lastCommitedIdx); 
 
             // go through wal files to see if we find that commit log / something newer
-            List<Path> walFiles = Files.list(Path.of("/tmp/wal/")).sorted().toList();
+            List<Path> walFiles = Files.list(Path.of("/tmp/wal/"))
+             .sorted().filter(file -> !file.getFileName().toString().matches("commit.log")).toList();
 
             return walFiles.stream()
                     .flatMap(this::fileToDataStream)
@@ -137,20 +148,25 @@ public class TextFileWal implements Wal {
     }
 
     private boolean filterAlreadyCommitedIndexes(Data dataRecord, long lastCommitedIdx) {
-        return dataRecord.getIdx() > lastCommitedIdx;
+        boolean allowed = dataRecord.getIdx() > lastCommitedIdx;
+        if (!allowed) {
+            logger.info("Filtering IDX: " + dataRecord.getIdx() + " as it's lower than the last committed IDX("+lastCommitedIdx+")");
+        }
+        return allowed; 
     }
 
     private Stream<Data> fileToDataStream(Path file) {
         try {
-            BufferedReader bufferedReader = new BufferedReader(new FileReader(file.toString()));
-            return bufferedReader.lines().map(line -> {
-                String[] parts = line.split("-");
-                long idx = Long.parseLong(parts[0]);
-                String key = parts[1];
-                String value = parts[2];
-                return new Data(key, value, idx);
-            });
-        } catch (FileNotFoundException e) {
+            try (BufferedReader bufferedReader = new BufferedReader(new FileReader(file.toString()))) {
+                return bufferedReader.lines().map(line -> {
+                    String[] parts = line.split("-");
+                    long idx = Long.parseLong(parts[0]);
+                    String key = parts[1];
+                    String value = parts[2];
+                    return new Data(key, value, idx);
+                });
+            }
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
