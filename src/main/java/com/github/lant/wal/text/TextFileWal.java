@@ -79,7 +79,7 @@ public class TextFileWal implements Wal {
     @Override
     public long write(String key, String value) {
         // "serialise"
-        long now = System.currentTimeMillis();
+        long now = System.nanoTime();
         String serialised = now + "-" + key + "-" + value + "\n";
         try {
             // write into the file.
@@ -123,19 +123,19 @@ public class TextFileWal implements Wal {
         // get commit log
         try {
             BufferedReader commitLogReader = new BufferedReader(new FileReader(commitLog));
-            String line = commitLogReader.readLine(); 
+            String line = commitLogReader.readLine();
             commitLogReader.close();
-            long lastCommitedIdx;  
+            long lastCommitedIdx;
             if (line != null) {
-                lastCommitedIdx = Long.parseLong(line); 
+                lastCommitedIdx = Long.parseLong(line);
             } else {
                 lastCommitedIdx = 0L;
             }
-            logger.info("Latest commit IDX = " + lastCommitedIdx); 
+            logger.info("Latest commit IDX = " + lastCommitedIdx);
 
             // go through wal files to see if we find that commit log / something newer
             List<Path> walFiles = Files.list(Path.of("/tmp/wal/"))
-             .sorted().filter(file -> !file.getFileName().toString().matches("commit.log")).toList();
+                    .sorted().filter(file -> !file.getFileName().toString().matches("commit.log")).toList();
 
             return walFiles.stream()
                     .flatMap(this::fileToDataStream)
@@ -152,20 +152,20 @@ public class TextFileWal implements Wal {
         if (!allowed) {
             logger.info("Filtering IDX: " + dataRecord.getIdx() + " as it's lower than the last committed IDX("+lastCommitedIdx+")");
         }
-        return allowed; 
+        return allowed;
     }
 
     private Stream<Data> fileToDataStream(Path file) {
         try {
-            try (BufferedReader bufferedReader = new BufferedReader(new FileReader(file.toString()))) {
-                return bufferedReader.lines().map(line -> {
-                    String[] parts = line.split("-");
-                    long idx = Long.parseLong(parts[0]);
-                    String key = parts[1];
-                    String value = parts[2];
-                    return new Data(key, value, idx);
-                });
-            }
+            BufferedReader bufferedReader = new BufferedReader(new FileReader(file.toString()));
+            return bufferedReader.lines().map(line -> {
+                String[] parts = line.split("-");
+                long idx = Long.parseLong(parts[0]);
+                String key = parts[1];
+                String value = parts[2];
+                return new Data(key, value, idx);
+            });
+
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
