@@ -3,7 +3,7 @@ Java implementation of a Write Ahead Log.
 
 This is a working implementation of a Write Ahead Log. It's purpose is to illustrate how this technique works. 
 
-It's explained in this [blog post](not published yet).
+It's extensively explained in this [blog post](https://surviving-software-architecture.ghost.io/write-ahead-logging/).
 
 | Version | Github Tag                                          | Commit tree                                                                             | Explanation                                                                                  |
 |---------|-----------------------------------------------------|-----------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------|
